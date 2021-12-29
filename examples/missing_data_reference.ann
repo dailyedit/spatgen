@@ -1,0 +1,46 @@
+name = missing_data_reference
+anchors = [study survey report research datum article review]
+actions = [publish show suggest highlight link say]
+quantities = [many most all]
+
+++match++
+lemma(anchors) <aux? adv? verb | lemma(actions)>
+pron! adj lemma(anchors) date!
+lemma(actions) adp det lemma(anchors)
+lower(quantities) <lemma("people") | norp> <adv? verb | lemma("be")>
+num sconj? adp num <norp | lemma("people")> adv? verb
+det lemma(anchors) adp? noun? verb
+
+++clear++
+lemma(anchors) [aux? adv? verb] adp det? <org | gpe>
+lemma(anchors) aux? adv? verb adp? <det? noun | date> [adp det? <org | gpe>]
+org <propn* | noun* | verb det?> lemma(anchors)
+lower("no") adj lemma(anchors)
+
+++stop++
+humidity
+temperature
+shower
+thunderstorm
+thunder
+rain
+hurricane
+typhoon
+cyclone
+sunny
+waves
+winds
+storm
+flood
+heart rate
+forecast to
+cold front
+tropical storm
+tropical depression
+was reported missing
+forecasters
+surf
+vortex
+coastal
+swells
+heat content
