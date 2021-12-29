@@ -3,7 +3,6 @@ from lark.visitors import Transformer
 import re
 import itertools
 
-
 GRAMMAR = r"""
 start: var+ section+
 
@@ -157,11 +156,18 @@ class PatternTransformer(Transformer):
         return None
 
 
-def parse(path: str):
+def parse_str(s: str):
     parser = Lark(GRAMMAR, parser="earley")
     transformer = PatternTransformer()
-    with open(path) as f:
-        s = f.read()
     tree = parser.parse(s)
     transformer.transform(tree)
-    return transformer.sections
+    return {
+        "definitions": transformer.definitions,
+        "sections": transformer.sections
+    }
+
+
+def parse_file(path: str):
+    with open(path) as f:
+        s = f.read()
+    return parse_str(s)
