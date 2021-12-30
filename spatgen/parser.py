@@ -59,11 +59,11 @@ class PatternTransformer(Transformer):
 
     @staticmethod
     def POS(token):
-        return {"POS": str(token)}
+        return {"POS": str(token).upper()}
 
     @staticmethod
     def ENT(token):
-        return {"ENT_TYPE": str(token)}
+        return {"ENT_TYPE": str(token).upper()}
 
     @staticmethod
     def MODIFIER(token):
