@@ -50,7 +50,7 @@ class PatternTransformer(Transformer):
     def __init__(self, s: str):
         super().__init__(visit_tokens=True)
         self._lines = s.splitlines()
-        self._definitions = {}
+        self.definitions = {}
         self.patterns = []
 
     @staticmethod
@@ -87,7 +87,7 @@ class PatternTransformer(Transformer):
 
     def var(self, tokens):
         key, val = tokens[0], tokens[1]
-        self._definitions[key] = val
+        self.definitions[key] = val
 
     def section(self, children):
         kind, patterns = str(children[0]), children[1:]
@@ -159,7 +159,7 @@ class PatternTransformer(Transformer):
         if match:
             return {tokens[0]: match.groups()[0]}
         else:
-            return {tokens[0]: {"IN": self._definitions[s]}}
+            return {tokens[0]: {"IN": self.definitions[s]}}
 
     @staticmethod
     def optional(tokens):
@@ -181,8 +181,9 @@ class PatternTransformer(Transformer):
 
 
 class Sections:
-    def __init__(self, patterns: List[Pattern]):
+    def __init__(self, patterns: List[Pattern], definitions: dict):
         it = itertools.groupby(patterns, key=lambda p: p.section)
+        self.definitions = definitions
         self._sections = {}
         for section, group in it:
             self._sections[section] = [p.expanded for p in group]
@@ -204,7 +205,7 @@ def parse_str(s: str) -> Sections:
     transformer = PatternTransformer(s)
     tree = parser.parse(s)
     transformer.transform(tree)
-    return Sections(transformer.patterns)
+    return Sections(transformer.patterns, transformer.definitions)
 
 
 def parse_file(path: str) -> Sections:
