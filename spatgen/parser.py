@@ -1,6 +1,9 @@
 from lark import Lark
-from lark.visitors import Transformer
+from lark.visitors import Transformer, v_args
+from dataclasses import dataclass
+from typing import List, Union
 import re
+import json
 import itertools
 
 GRAMMAR = r"""
@@ -32,11 +35,23 @@ STRING: "\"" WORD "\""
 """
 
 
+@dataclass
+class Pattern:
+    section: str
+    raw: str
+    expanded: Union[List[dict], str]
+    line: int
+
+    def __hash__(self):
+        return hash(json.dumps(self.expanded, sort_keys=True))
+
+
 class PatternTransformer(Transformer):
-    def __init__(self):
+    def __init__(self, s: str):
         super().__init__(visit_tokens=True)
-        self.definitions = {}
-        self.sections = {}
+        self._lines = s.splitlines()
+        self._definitions = {}
+        self.patterns = []
 
     @staticmethod
     def KEYWORD(token):
@@ -72,19 +87,21 @@ class PatternTransformer(Transformer):
 
     def var(self, tokens):
         key, val = tokens[0], tokens[1]
-        self.definitions[key] = val
+        self._definitions[key] = val
 
     def section(self, children):
         kind, patterns = str(children[0]), children[1:]
-        if all(isinstance(p, str) for p in patterns):
-            self.sections[kind] = patterns
-        else:
-            flat = list(itertools.chain.from_iterable(patterns))
-            self.sections[kind] = flat
+        for line, pattern_list in patterns:
+            raw = self._lines[line - 1]
+            if isinstance(pattern_list, str):
+                pattern = Pattern(kind, raw, pattern_list, line)
+                self.patterns.append(pattern)
+            elif isinstance(pattern_list, list):
+                for pattern in pattern_list:
+                    pattern = Pattern(kind, raw, pattern, line)
+                    self.patterns.append(pattern)
 
-    def pattern(self, matches):
-        if all(isinstance(m, str) for m in matches):
-            return " ".join(matches)
+    def _expand_matches(self, matches):
         patterns = []
         for match in matches:
             if isinstance(match, dict) and len(patterns) == 0:
@@ -104,7 +121,7 @@ class PatternTransformer(Transformer):
                 patterns.append([])
                 patterns += match[0]
             elif isinstance(match, tuple):
-                inner = self.pattern(match[0])
+                inner = self._expand_matches(match[0])
                 if len(inner) == 1:
                     with_option = [p + inner[0] for p in patterns]
                     patterns += with_option
@@ -114,8 +131,15 @@ class PatternTransformer(Transformer):
                         with_option = [p + option for p in patterns]
                         new_patterns += with_option
                     patterns += new_patterns
-
         return patterns
+
+    @v_args(tree=True)
+    def pattern(self, tree):
+        matches = tree.children
+        line = tree.meta.line
+        if all(isinstance(m, str) for m in matches):
+            return line, " ".join(matches)
+        return line, self._expand_matches(matches)
 
     @staticmethod
     def match(children):
@@ -135,11 +159,11 @@ class PatternTransformer(Transformer):
         if match:
             return {tokens[0]: match.groups()[0]}
         else:
-            return {tokens[0]: {"IN": self.definitions[s]}}
+            return {tokens[0]: {"IN": self._definitions[s]}}
 
     @staticmethod
     def optional(tokens):
-        return tokens,
+        return (tokens,)
 
     @staticmethod
     def selection(children):
@@ -156,18 +180,34 @@ class PatternTransformer(Transformer):
         return None
 
 
-def parse_str(s: str):
-    parser = Lark(GRAMMAR, parser="earley")
-    transformer = PatternTransformer()
+class Sections:
+    def __init__(self, patterns: List[Pattern]):
+        it = itertools.groupby(patterns, key=lambda p: p.section)
+        self._sections = {}
+        for section, group in it:
+            self._sections[section] = [p.expanded for p in group]
+        self._meta = {hash(p): p for p in patterns}
+
+    def get_meta(self, pattern: List[dict]) -> Pattern:
+        key = hash(json.dumps(pattern, sort_keys=True))
+        return self._meta[key]
+
+    def keys(self) -> List[str]:
+        return list(self._sections.keys())
+
+    def __getitem__(self, section: str) -> List[List[dict]]:
+        return self._sections[section]
+
+
+def parse_str(s: str) -> Sections:
+    parser = Lark(GRAMMAR, parser="earley", propagate_positions=True)
+    transformer = PatternTransformer(s)
     tree = parser.parse(s)
     transformer.transform(tree)
-    return {
-        "definitions": transformer.definitions,
-        "sections": transformer.sections
-    }
+    return Sections(transformer.patterns)
 
 
-def parse_file(path: str):
+def parse_file(path: str) -> Sections:
     with open(path) as f:
         s = f.read()
     return parse_str(s)

@@ -1,7 +1,9 @@
 # Spatgen: Pattern generator for spaCy
 
 Spatgen is a concise and readable DSL and parser which produces patterns for [spaCy](https://github.com/explosion/spaCy)
-which you can use in the [Matcher](https://spacy.io/api/matcher) class
+which you can use in the [Matcher](https://spacy.io/api/matcher) class.
+
+We think [Matcher](https://spacy.io/api/matcher) is fantastic but writing patterns can become tedious especially if there are several combinations with the same prefix or suffix and if the rules don't fall into any of the `OP` operations provided. This package simplifies the creation of large lists of patterns.
 
 ## Example
 
@@ -21,13 +23,7 @@ lemma(anchors) aux? adv? verb adp? <det? noun | date> [adp det? <org | gpe>]
 parser.parse_str(str(patterns))
 ```
 
-This will produce a dict with the keys `definitions` and `sections`.
-
-`definitions` is a dict where each key is a defined name (in this case: `name`
-and `anchors`) and each value is the corresponding value.
-
-`sections` is a dict where each key is a section name (in this case just one - `match`) and each value is a list of
-patterns that can be passed directly to spaCy's Matcher.
+This will produce a `Sections` object which contains a list of patterns (suitable for `Matcher`) for each heading found in the input. It also has a `get_meta` method which allows you to retrieve extra information about the pattern such as its line number and the raw source that led to its creation.
 
 ## Syntax
 
