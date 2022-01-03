@@ -1,7 +1,7 @@
 from lark import Lark
 from lark.visitors import Transformer, v_args
 from dataclasses import dataclass
-from typing import List, Union
+from typing import List, TypeVar, Union, Any
 import re
 import json
 import itertools
@@ -180,7 +180,12 @@ class PatternTransformer(Transformer):
         return None
 
 
+T = TypeVar("T")
+
+
 class Sections:
+    definitions: dict
+
     def __init__(self, patterns: List[Pattern], definitions: dict):
         it = itertools.groupby(patterns, key=lambda p: p.section)
         self.definitions = definitions
@@ -195,6 +200,12 @@ class Sections:
 
     def keys(self) -> List[str]:
         return list(self._sections.keys())
+
+    def get(self, section: str, default: T) -> Union[List[List[dict]], T]:
+        if section in self._sections:
+            return self._sections[section]
+        else:
+            return default
 
     def __getitem__(self, section: str) -> List[List[dict]]:
         return self._sections[section]
